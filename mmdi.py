@@ -1,72 +1,49 @@
 # -*- coding: utf-8 -*-
-
 """
-MMDI
+MMDI: Cipher and Decipher Utility
 """
 
 import json
 
-settings_pth = "settings.json"
-
-with open(settings_pth, 'r') as file:
+# Load settings
+SETTINGS_PATH = "settings.json"
+with open(SETTINGS_PATH, 'r', encoding='utf-8') as file:
     data = json.load(file)
 
 MIN_LENGTH = data["MIN_LENGTH"]
-
 MAX_LENGTH = data["MAX_LENGTH"]
 
-word_lst = open("word_lst.txt", "r", encoding="utf-8").read().split("\n")
+# Load word lists
+WORD_LIST_PATH = data["word_lst_pth"]
+KEY_LIST_PATH = data["key_lst_pth"]
 
-mmdi_dickey = open("m_keys/ff2a.txt", "r", encoding="utf-8").read().split("\n")
+word_list = open(WORD_LIST_PATH, "r", encoding="utf-8").read().splitlines()
+key_list = open(KEY_LIST_PATH, "r", encoding="utf-8").read().splitlines()
 
-
-def cipher(text, word_lst):
+def cipher(text, word_list, key_list):
+    """Encrypt a given text using the word list and key list."""
     text = text.lower()
-    cipher_text = ""
+    cipher_dict = {word_list[i]: key_list[i] for i in range(len(word_list))}
+    
+    return " ".join(cipher_dict.get(word, word) for word in text.split(" "))
 
-    words = text.split(" ")
+def decipher(text, word_list, key_list):
+    """Decrypt a given text using the key list and word list."""
+    decipher_dict = {key_list[i]: word_list[i] for i in range(len(key_list))}
+    
+    return " ".join(decipher_dict.get(word, word) for word in text.split(" "))
 
-    dict_key = {word_lst[i]: mmdi_dickey[i] for i in range(len(word_lst))}
+if __name__ == "__main__":
+    # Test the functions
+    message = "bonjour tous le monde je dit que je suis une phrase de test"
+    print("Original Message:", message, "\n")
 
-    for word in words:
-        if word in dict_key:
-            cipher_text += dict_key[word] + " "
-        else:
-            cipher_text += word + " "
+    encrypted_text = cipher(message, word_list, key_list)
+    print("Encrypted Text:", encrypted_text, "\n")
 
-    return cipher_text
-
-
-def decipher(text, word_lst):
-    cipher_text = ""
-
-    words = text.split(" ")
-
-    dict_key = {mmdi_dickey[i]: word_lst[i] for i in range(len(mmdi_dickey))}
-
-    for word in words:
-        if word in dict_key:
-            cipher_text += dict_key[word] + " "
-        else:
-            cipher_text += word + " "
-
-    return cipher_text
+    decrypted_text = decipher(encrypted_text, word_list, key_list)
+    print("Decrypted Text:", decrypted_text)
 
 
-# test -------------------------------------------------
-
-msg = "bonjour tous le monde je dit que je suis une phrase de test"
-print(msg,"\n")
-
-encrypted_text = cipher(msg, word_lst)
-
-print(encrypted_text, "\n")
-
-print(decipher(encrypted_text, word_lst))
-
-
-# 12/12/24: Test passed. Encrypt and decrypt functions work correctly.
-
-# ---------------------------------
 
 
