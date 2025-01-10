@@ -1,16 +1,12 @@
 # -*- coding: utf-8 -*-
 
-"""
-Word Generator: Generates words based on trigram probabilities with weighted length distribution.
-"""
-
 import numpy as np
-from numpy.random import choice
+from numpy.random import choice as num_choice
+import codecs
+from random import randint, choice
 import json
 import os
-from random import shuffle
 from uuid import uuid4
-from random import randint
 
 # Ensure output directory exists
 OUTPUT_DIR = "m_keys"
@@ -26,7 +22,8 @@ MIN_LENGTH = data["MIN_LENGTH"]
 MAX_LENGTH = data["MAX_LENGTH"]
 FILE_PATH = data["word_lst_pth"]
 
-def gen_weigthed_length(MIN_LENGTH, MAX_LENGTH):
+
+def gen_weigthed_length():
     LENGTH_WEIGHTS = {}
 
     F = MAX_LENGTH
@@ -42,63 +39,51 @@ def gen_weigthed_length(MIN_LENGTH, MAX_LENGTH):
     return LENGTH_DISTRIBUTION
 
 
-
 def generate_words():
-    """Generate words based on trigram probabilities."""
-    output_file = os.path.join(OUTPUT_DIR, f"{uuid4().hex[:4]}.txt")
-
-    # Load word list and trigram probabilities
-    word_set = set()
-    with open(FILE_PATH, "r", encoding="utf-8") as file:
-        for line in file:
-            word_set.add(line.strip())
-
+    word_list = open(FILE_PATH, "r", encoding="utf-8").read().splitlines()
+    
     count = np.fromfile("count.bin", dtype="int32").reshape((256, 256, 256))
+    s = count.sum(axis=2)
 
-    # Compute probabilities
-    sum_counts = count.sum(axis=2, keepdims=True)
-    sum_counts[sum_counts == 0] = 1  # Avoid division by zero by setting zero sums to 1 temporarily
+    s[s == 0] = 1
+    p = count / s[:, :, None]
+    p[np.isnan(p)] = 0
 
-    probabilities = count / sum_counts
-    probabilities[np.isnan(probabilities)] = 0  # Replace NaNs with 0
-
-    # Ensure that rows with no data are replaced with uniform probabilities
     for i in range(256):
         for j in range(256):
-            if not np.isclose(probabilities[i, j, :].sum(), 1.0):
-                probabilities[i, j, :] = 1.0 / 256
+            if not np.isclose(p[i, j, :].sum(), 1.0):
+                p[i, j, :] = 1.0 / 256
+    
+    outfile = os.path.join(OUTPUT_DIR, f"{uuid4().hex[:4]}.txt")
 
-    # Generate words
-    with open("total_word_count.txt", "r", encoding="utf-8") as file:
-        target_word_count = int(file.read().strip())-1
+    with codecs.open(outfile, "w", "utf-8") as f:
+        target_length = len(word_list)
 
-    generated_count = 0
+        total_generated = 0
 
-    with open(output_file, "w", encoding="utf-8") as file:
-        while generated_count < target_word_count:
+        lst = []
+
+        while total_generated < target_length:
             i, j = 0, 0
             word = ""
-            word_length = choice(gen_weigthed_length(MIN_LENGTH, MAX_LENGTH))
+            TGT  =  choice(gen_weigthed_length())
 
             while True:
-                k = choice(range(256), p=probabilities[i, j, :])
-                if k == 10 or len(word) >= word_length:
+                k = num_choice(range(256), p=p[i, j, :])
+                if k == 10:
                     break
                 word += chr(k)
+                if len(word) == TGT:
+                    break
                 i, j = j, k
+            if word and word not in lst:
+                if word not in word_list:
+                    f.write(word + "\n")
+                    lst = lst + [word]
+                    total_generated += 1
+                    print(f"generated word : {word}")
 
-            if word and word not in word_set and MIN_LENGTH <= len(word) <= MAX_LENGTH:
-                file.write(word + "\n")
-                generated_count += 1
-                print(f"Generated word: {word}")
-
-    print(f"Words saved to {output_file}")
-
-
-
-if __name__ == "__main__":
+for e in range(100):
     generate_words()
-
-
 
 
